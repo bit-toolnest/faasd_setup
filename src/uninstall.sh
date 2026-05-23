@@ -1,38 +1,70 @@
 #!/bin/bash
-set -e
 
-echo "=== FAASD Server Uninstaller Script ==="
+set -euo pipefail
 
-# 1) Stop faasd services
+############################################
+# Version variables (match install.sh)
+############################################
+export OWNER="bitresearch2006"
+export REPO="faasd"
+export CNI_VERSION="v1.9.1"
+export CONTAINERD_VERSION="1.7.27"
+
+SUDO=sudo
+if [ "$(id -u)" -eq 0 ]; then SUDO=; fi
+
+############################################
+# Stop services
+############################################
 echo "➡ Stopping faasd services..."
-sudo systemctl stop faasd || true
-sudo systemctl disable faasd || true
+$SUDO systemctl stop faasd || true
+$SUDO systemctl disable faasd || true
 
-# 2) Remove faasd binary
+echo "➡ Stopping containerd..."
+$SUDO systemctl stop containerd || true
+$SUDO systemctl disable containerd || true
+
+############################################
+# Remove faasd binary + configs
+############################################
 echo "➡ Removing faasd binary..."
-sudo rm -f /usr/local/bin/faasd || true
+$SUDO rm -f /usr/local/bin/faasd
 
-# 3) Remove faasd configs
 echo "➡ Removing faasd configs..."
-sudo rm -rf /etc/faasd || true
+$SUDO rm -rf /etc/faasd
+$SUDO rm -rf /var/lib/faasd
+$SUDO rm -rf /tmp/faasd-*installation
 
-# 4) Remove containerd + runc
-echo "➡ Removing containerd and runc..."
-sudo systemctl stop containerd || true
-sudo systemctl disable containerd || true
-sudo apt remove --purge containerd runc -y || true
+############################################
+# Remove systemd unit files
+############################################
+echo "➡ Removing systemd unit files..."
+$SUDO rm -f /etc/systemd/system/faasd.service
+$SUDO rm -f /etc/systemd/system/faasd-provider.service
 
-# 5) Remove CNI plugins
+############################################
+# Remove CNI plugins
+############################################
 echo "➡ Removing CNI plugins..."
-sudo rm -rf /opt/cni/bin || true
+$SUDO rm -rf /opt/cni/bin
 
-# 6) Cleanup containerd state
-echo "➡ Cleaning containerd state..."
-sudo rm -rf /var/lib/containerd || true
+############################################
+# Remove containerd (optional)
+############################################
+echo "➡ Removing containerd..."
+$SUDO apt-get remove -y containerd runc || true
+$SUDO apt-get autoremove -y
+$SUDO apt-get clean
 
-# 7) Final apt cleanup
-echo "➡ Running apt cleanup..."
-sudo apt autoremove -y
-sudo apt clean
+############################################
+# Remove arkade + faas-cli (optional)
+############################################
+echo "➡ Removing arkade and faas-cli..."
+$SUDO rm -f /usr/local/bin/arkade
+$SUDO rm -f /usr/local/bin/faas-cli
+rm -rf $HOME/.arkade || true
 
-echo "🎯 faasd server uninstall process finished!"
+############################################
+# Final cleanup
+############################################
+echo "✅ faasd platform uninstalled successfully"
